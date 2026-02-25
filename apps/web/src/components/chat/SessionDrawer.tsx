@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { Session } from "../../lib/types";
 import { api } from "../../lib/api";
 import { useDrawer } from "../../contexts/DrawerContext";
@@ -17,6 +17,7 @@ interface SessionDrawerProps {
   currentSessionId: string | null;
   onSelectSession: (session: Session) => void;
   onNewSession: () => void;
+  onDeleteSession?: (sessionId: string) => void;
   refreshKey?: number;
 }
 
@@ -24,6 +25,7 @@ export function SessionDrawer({
   currentSessionId,
   onSelectSession,
   onNewSession,
+  onDeleteSession,
   refreshKey,
 }: SessionDrawerProps) {
   const { open, close } = useDrawer();
@@ -37,6 +39,22 @@ export function SessionDrawer({
       // silent
     }
   }, []);
+
+  const handleDelete = useCallback(
+    async (e: React.MouseEvent, sessionId: string) => {
+      e.stopPropagation();
+      try {
+        await api.deleteSession(sessionId);
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        if (sessionId === currentSessionId) {
+          onDeleteSession?.(sessionId);
+        }
+      } catch {
+        // silent
+      }
+    },
+    [currentSessionId, onDeleteSession],
+  );
 
   useEffect(() => {
     fetchSessions();
@@ -82,19 +100,31 @@ export function SessionDrawer({
             ) : (
               <div className="flex flex-col gap-0.5">
                 {sessions.map((s) => (
-                  <button
+                  <div
                     key={s.id}
                     className={cn(
-                      "w-full text-left px-3 py-2.5 rounded-md text-sm truncate transition-colors",
+                      "group flex items-center rounded-md transition-colors",
                       s.id === currentSessionId
                         ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     )}
-                    onClick={() => handleSelect(s)}
-                    type="button"
                   >
-                    {s.title}
-                  </button>
+                    <button
+                      className="flex-1 text-left px-3 py-2.5 text-sm truncate min-w-0"
+                      onClick={() => handleSelect(s)}
+                      type="button"
+                    >
+                      {s.title}
+                    </button>
+                    <button
+                      className="shrink-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDelete(e, s.id)}
+                      type="button"
+                      aria-label="Delete session"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

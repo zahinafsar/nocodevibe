@@ -75,6 +75,12 @@ export function ChatPanel() {
     }
   }, []);
 
+  const deleteSession = useCallback(() => {
+    setSessionId(null);
+    setMessages([]);
+    setError(null);
+  }, []);
+
   const sendMessage = useCallback(
     async (prompt: string) => {
       if (!selectedModel) {
@@ -191,6 +197,7 @@ export function ChatPanel() {
         currentSessionId={sessionId}
         onSelectSession={loadSession}
         onNewSession={createSession}
+        onDeleteSession={deleteSession}
         refreshKey={refreshKey}
       />
       <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
