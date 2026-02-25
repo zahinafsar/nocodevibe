@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "--cwd", "/Users/zahinafsar/Work/coodeen/apps/web", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["--watch", "/Users/zahinafsar/Work/coodeen/apps/server/src/index.ts"],
+      "port": 3001
+    }
+  ]
+}
