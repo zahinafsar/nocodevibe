@@ -12,11 +12,20 @@ export interface ElementSelection {
   line: number;
 }
 
+export interface ScreenshotAttachment {
+  id: string;
+  dataUrl: string;
+}
+
 interface ElementSelectionContextValue {
   selections: ElementSelection[];
   addSelection: (selection: ElementSelection) => void;
   removeSelection: (index: number) => void;
   clearSelections: () => void;
+  screenshots: ScreenshotAttachment[];
+  addScreenshot: (dataUrl: string) => void;
+  removeScreenshot: (id: string) => void;
+  clearScreenshots: () => void;
 }
 
 const ElementSelectionContext =
@@ -28,10 +37,10 @@ export function ElementSelectionProvider({
   children: ReactNode;
 }) {
   const [selections, setSelections] = useState<ElementSelection[]>([]);
+  const [screenshots, setScreenshots] = useState<ScreenshotAttachment[]>([]);
 
   const addSelection = useCallback((selection: ElementSelection) => {
     setSelections((prev) => {
-      // Deduplicate by component+file+line
       const exists = prev.some(
         (s) =>
           s.component === selection.component &&
@@ -51,9 +60,33 @@ export function ElementSelectionProvider({
     setSelections([]);
   }, []);
 
+  const addScreenshot = useCallback((dataUrl: string) => {
+    setScreenshots((prev) => [
+      ...prev,
+      { id: `ss-${Date.now()}`, dataUrl },
+    ]);
+  }, []);
+
+  const removeScreenshot = useCallback((id: string) => {
+    setScreenshots((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  const clearScreenshots = useCallback(() => {
+    setScreenshots([]);
+  }, []);
+
   return (
     <ElementSelectionContext.Provider
-      value={{ selections, addSelection, removeSelection, clearSelections }}
+      value={{
+        selections,
+        addSelection,
+        removeSelection,
+        clearSelections,
+        screenshots,
+        addScreenshot,
+        removeScreenshot,
+        clearScreenshots,
+      }}
     >
       {children}
     </ElementSelectionContext.Provider>

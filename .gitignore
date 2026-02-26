@@ -6,3 +6,4 @@ dist
 *.tsbuildinfo
 *.db
 *.db-journal
+static

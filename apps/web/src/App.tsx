@@ -7,7 +7,7 @@ import "highlight.js/styles/github-dark.css";
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/editor">
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<MainPage />} />

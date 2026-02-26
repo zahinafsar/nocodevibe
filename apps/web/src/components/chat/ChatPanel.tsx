@@ -82,7 +82,7 @@ export function ChatPanel() {
   }, []);
 
   const sendMessage = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, screenshots?: string[]) => {
       if (!selectedModel) {
         setError("Please select a model first.");
         return;
@@ -103,7 +103,7 @@ export function ChatPanel() {
         }
       }
 
-      const userMsg: ChatMessage = { id: nextId(), role: "user", content: prompt };
+      const userMsg: ChatMessage = { id: nextId(), role: "user", content: prompt, images: screenshots };
       const assistantId = nextId();
       const assistantMsg: ChatMessage = {
         id: assistantId,
@@ -123,6 +123,7 @@ export function ChatPanel() {
           selectedModel.providerId,
           selectedModel.modelId,
           projectDir || undefined,
+          screenshots,
         );
         abortRef.current = stream.abort;
 

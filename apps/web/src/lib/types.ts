@@ -33,4 +33,5 @@ export interface ChatMessage {
   content: string;
   toolCalls?: ToolCall[];
   isStreaming?: boolean;
+  images?: string[];
 }

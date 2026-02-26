@@ -3,35 +3,20 @@ import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SelectionOverlay } from "./SelectionOverlay";
+import { useElementSelection } from "../../contexts/ElementSelectionContext";
 
-const STORAGE_KEY = "coodeen-preview-url";
 const DEFAULT_URL = "http://localhost:3000";
 const LOAD_TIMEOUT_MS = 10_000;
 
-function getInitialUrl(): string {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return stored;
-  } catch {
-    /* localStorage unavailable */
-  }
-  return DEFAULT_URL;
-}
-
 export function PreviewPanel() {
-  const [url, setUrl] = useState(getInitialUrl);
-  const [inputValue, setInputValue] = useState(url);
+  const [url, setUrl] = useState(DEFAULT_URL);
+  const [inputValue, setInputValue] = useState(DEFAULT_URL);
   const [error, setError] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, url);
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, [url]);
+  const { addScreenshot } = useElementSelection();
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -111,7 +96,11 @@ export function PreviewPanel() {
           spellCheck={false}
           aria-label="Preview URL"
         />
-        <SelectionOverlay iframeRef={iframeRef} iframeUrl={url} />
+        <SelectionOverlay
+          iframeRef={iframeRef}
+          previewContainerRef={contentRef}
+          onScreenshotCaptured={addScreenshot}
+        />
         <Button
           variant="ghost"
           size="icon"
@@ -139,15 +128,16 @@ export function PreviewPanel() {
           </Button>
         </div>
       ) : (
-        <iframe
-          ref={iframeRef}
-          className="flex-1 w-full border-none bg-white"
-          src={url}
-          sandbox="allow-scripts allow-same-origin allow-forms"
-          title="Preview"
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-        />
+        <div ref={contentRef} className="flex-1 relative overflow-hidden">
+          <iframe
+            ref={iframeRef}
+            className="w-full h-full border-none bg-white"
+            src={url}
+            title="Preview"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+          />
+        </div>
       )}
     </div>
   );

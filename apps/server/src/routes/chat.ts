@@ -12,6 +12,7 @@ chat.post("/", async (c) => {
     providerId?: string;
     modelId?: string;
     projectDir?: string;
+    images?: string[];
   }>();
 
   if (!body.sessionId) {
@@ -21,7 +22,7 @@ chat.post("/", async (c) => {
     return c.json({ error: "providerId and modelId are required" }, 400);
   }
 
-  const { sessionId, prompt = "", providerId, modelId } = body;
+  const { sessionId, prompt = "", providerId, modelId, images } = body;
   const projectDir = body.projectDir || process.cwd();
 
   // AbortController so we can cancel the LLM stream on client disconnect
@@ -44,6 +45,7 @@ chat.post("/", async (c) => {
         providerId,
         modelId,
         projectDir,
+        images,
         signal: controller.signal,
       })) {
         if (controller.signal.aborted) break;

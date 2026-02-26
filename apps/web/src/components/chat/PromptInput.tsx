@@ -15,7 +15,7 @@ export interface ModelSelection {
 }
 
 interface PromptInputProps {
-  onSubmit: (prompt: string) => void;
+  onSubmit: (prompt: string, screenshots?: string[]) => void;
   disabled?: boolean;
   streaming?: boolean;
   onStop?: () => void;
@@ -42,7 +42,14 @@ export function PromptInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
-  const { selections, removeSelection, clearSelections } = useElementSelection();
+  const {
+    selections,
+    removeSelection,
+    clearSelections,
+    screenshots,
+    removeScreenshot,
+    clearScreenshots,
+  } = useElementSelection();
 
   const handleSubmit = useCallback(
     (e?: FormEvent) => {
@@ -59,13 +66,20 @@ export function PromptInput({
         clearSelections();
       }
 
-      onSubmit(finalPrompt);
+      const screenshotUrls =
+        screenshots.length > 0
+          ? screenshots.map((s) => s.dataUrl)
+          : undefined;
+
+      onSubmit(finalPrompt, screenshotUrls);
+      clearScreenshots();
+
       if (textareaRef.current) {
         textareaRef.current.value = "";
         textareaRef.current.style.height = "auto";
       }
     },
-    [onSubmit, disabled, selections, clearSelections],
+    [onSubmit, disabled, selections, clearSelections, screenshots, clearScreenshots],
   );
 
   const handleKeyDown = useCallback(
@@ -96,6 +110,7 @@ export function PromptInput({
       )}
       onSubmit={handleSubmit}
     >
+      {/* Element selection badges */}
       {selections.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selections.map((sel, i) => (
@@ -122,6 +137,33 @@ export function PromptInput({
           ))}
         </div>
       )}
+
+      {/* Screenshot thumbnails */}
+      {screenshots.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {screenshots.map((ss) => (
+            <div
+              key={ss.id}
+              className="relative group w-20 h-20 rounded-md overflow-hidden border border-border bg-muted"
+            >
+              <img
+                src={ss.dataUrl}
+                alt="Screenshot"
+                className="w-full h-full object-cover"
+              />
+              <button
+                type="button"
+                className="absolute top-0.5 right-0.5 rounded-full bg-black/60 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => removeScreenshot(ss.id)}
+                aria-label="Remove screenshot"
+              >
+                <X className="h-3 w-3 text-white" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-end gap-2">
         <Textarea
           ref={textareaRef}

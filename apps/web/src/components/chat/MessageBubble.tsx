@@ -23,7 +23,17 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
       >
         {isUser ? (
-          <div className="whitespace-pre-wrap">{message.content}</div>
+          <div>
+            {message.images?.map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt={`Screenshot ${i + 1}`}
+                className="rounded-md max-w-full max-h-48 mb-2"
+              />
+            ))}
+            <div className="whitespace-pre-wrap">{message.content}</div>
+          </div>
         ) : (
           <>
             {message.toolCalls?.map((tc, i) => (

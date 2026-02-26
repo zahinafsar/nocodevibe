@@ -105,6 +105,7 @@ export const api = {
     providerId: string,
     modelId: string,
     projectDir?: string,
+    images?: string[],
     signal?: AbortSignal,
   ) => {
     const abortController = new AbortController();
@@ -118,7 +119,7 @@ export const api = {
       const res = await fetch(`${BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, prompt, providerId, modelId, projectDir }),
+        body: JSON.stringify({ sessionId, prompt, providerId, modelId, projectDir, images }),
         signal: abortController.signal,
       });
 

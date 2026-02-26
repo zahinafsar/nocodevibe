@@ -25,6 +25,7 @@ import { sessions } from "./routes/sessions.js";
 import { providers } from "./routes/providers.js";
 import { configRoutes } from "./routes/config.js";
 import { fs } from "./routes/fs.js";
+import { proxy } from "./routes/proxy.js";
 
 const app = new Hono();
 
@@ -64,6 +65,9 @@ app.route("/api/config", configRoutes);
 
 // Filesystem browsing
 app.route("/api/fs", fs);
+
+// Editor (built dist)
+app.route("/", proxy);
 
 const port = Number(process.env.PORT) || 3001;
 

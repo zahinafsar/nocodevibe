@@ -17,6 +17,7 @@ export type RunAgentInput = {
   providerId: string;
   modelId: string;
   projectDir: string;
+  images?: string[];
   signal: AbortSignal;
 };
 
@@ -30,6 +31,7 @@ export async function* runAgent({
   providerId,
   modelId,
   projectDir,
+  images,
   signal,
 }: RunAgentInput): AsyncGenerator<AgentEvent> {
   // 1. Resolve the specified provider
@@ -42,15 +44,27 @@ export async function* runAgent({
 
   // 2. Build conversation history from DB
   const history = await messageDb.listBySession(sessionId);
-  const messages: Array<{ role: "user" | "assistant" | "system"; content: string }> = history.map(
-    (m) => ({
-      role: m.role as "user" | "assistant" | "system",
-      content: m.content,
-    }),
-  );
+  type TextContent = { role: "user" | "assistant" | "system"; content: string };
+  type MultiPartContent = {
+    role: "user";
+    content: Array<{ type: "text"; text: string } | { type: "image"; image: string }>;
+  };
+  const messages: Array<TextContent | MultiPartContent> = history.map((m) => ({
+    role: m.role as "user" | "assistant" | "system",
+    content: m.content,
+  }));
 
-  // Append the current user prompt
-  messages.push({ role: "user", content: prompt });
+  // Append the current user prompt (with images if present)
+  if (images && images.length > 0) {
+    const parts: MultiPartContent["content"] = images.map((dataUrl) => ({
+      type: "image" as const,
+      image: dataUrl,
+    }));
+    parts.push({ type: "text", text: prompt });
+    messages.push({ role: "user", content: parts });
+  } else {
+    messages.push({ role: "user", content: prompt });
+  }
 
   // 3. System prompt
   const home = process.env.HOME || process.env.USERPROFILE || "/";
