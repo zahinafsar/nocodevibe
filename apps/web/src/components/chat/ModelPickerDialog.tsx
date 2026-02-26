@@ -8,12 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-const PROVIDER_LABELS: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Google",
-};
+import { Badge } from "@/components/ui/badge";
 
 interface ModelPickerDialogProps {
   open: boolean;
@@ -55,8 +50,13 @@ export function ModelPickerDialog({
             ) : (
               connectedModels.map((group) => (
                 <div key={group.providerId}>
-                  <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/50">
-                    {PROVIDER_LABELS[group.providerId] ?? group.providerId}
+                  <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/50 flex items-center gap-2">
+                    {group.label}
+                    {group.free && (
+                      <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        Free
+                      </Badge>
+                    )}
                   </div>
                   {group.models.map((m) => (
                     <button

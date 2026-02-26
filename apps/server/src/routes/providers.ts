@@ -1,30 +1,7 @@
 import { Hono } from "hono";
 import { provider } from "../db/index.js";
-
-const MODELS: Record<string, string[]> = {
-  anthropic: [
-    "claude-sonnet-4-20250514",
-    "claude-opus-4-20250514",
-    "claude-haiku-4-20250414",
-    "claude-3.5-sonnet-20241022",
-  ],
-  openai: [
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-4.1-nano",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "o3",
-    "o3-mini",
-    "o4-mini",
-  ],
-  google: [
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-  ],
-};
+import { getFreeModels } from "../agent/freeModels.js";
+import { getModelsConfig } from "../agent/modelsConfig.js";
 
 /** Mask an API key: show only the last 4 characters. */
 function maskKey(key: string): string {
@@ -41,29 +18,57 @@ providers.get("/", async (c) => {
   return c.json(masked);
 });
 
-// GET /api/providers/models/:providerName — hardcoded model list
-providers.get("/models/:providerName", (c) => {
+// GET /api/providers/models/:providerName — model list from config
+providers.get("/models/:providerName", async (c) => {
   const name = c.req.param("providerName").toLowerCase();
-  const models = MODELS[name];
-  if (!models) {
-    return c.json(
-      { error: `Unknown provider: ${name}. Supported: ${Object.keys(MODELS).join(", ")}` },
-      404,
-    );
+  const config = await getModelsConfig();
+
+  if (name === config.free.provider) {
+    const free = await getFreeModels();
+    return c.json({ provider: name, models: free.map((m) => m.id) });
   }
-  return c.json({ provider: name, models });
+
+  const entry = config.providers[name];
+  if (!entry) {
+    const supported = [...Object.keys(config.providers), config.free.provider].join(", ");
+    return c.json({ error: `Unknown provider: ${name}. Supported: ${supported}` }, 404);
+  }
+  return c.json({ provider: name, models: entry.models });
 });
 
 // GET /api/providers/connected-models — all models grouped by connected provider
+// Free models are always included first.
 providers.get("/connected-models", async (c) => {
-  const list = await provider.list();
-  const result = list
-    .filter((p) => MODELS[p.id])
-    .map((p) => ({
-      providerId: p.id,
-      models: MODELS[p.id],
-    }));
+  const [list, config, free] = await Promise.all([
+    provider.list(),
+    getModelsConfig(),
+    getFreeModels(),
+  ]);
+
+  const result: { providerId: string; label: string; models: string[]; free?: boolean }[] = [
+    { providerId: config.free.provider, label: config.free.label, models: free.map((m) => m.id), free: true },
+  ];
+
+  for (const p of list) {
+    const entry = config.providers[p.id];
+    if (entry) {
+      result.push({ providerId: p.id, label: entry.label, models: entry.models });
+    }
+  }
+
   return c.json(result);
+});
+
+// GET /api/providers/free-models — detailed free model info (id + name)
+providers.get("/free-models", async (c) => {
+  const free = await getFreeModels();
+  return c.json(free);
+});
+
+// GET /api/providers/config — full models config for frontend
+providers.get("/config", async (c) => {
+  const config = await getModelsConfig();
+  return c.json(config);
 });
 
 // PUT /api/providers/:id — upsert provider { apiKey }

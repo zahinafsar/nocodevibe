@@ -3,6 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
 import { provider } from "../db/index.js";
+import { createZenProvider } from "./freeModels.js";
 
 export type ResolvedProvider = {
   model: LanguageModel;
@@ -17,11 +18,20 @@ export type ResolveError = {
 /**
  * Resolves a provider+model by looking up the API key from DB
  * and constructing the correct @ai-sdk/* provider instance.
+ *
+ * The "opencode" provider uses OpenCode Zen (free, no API key needed).
  */
 export async function resolveProvider(
   providerId: string,
   modelId: string,
 ): Promise<ResolvedProvider | ResolveError> {
+  // OpenCode Zen — free models, no API key required
+  if (providerId === "opencode") {
+    const zen = await createZenProvider();
+    const model = zen.chatModel(modelId);
+    return { model, providerId, modelId };
+  }
+
   const providerRow = await provider.get(providerId);
 
   if (!providerRow) {

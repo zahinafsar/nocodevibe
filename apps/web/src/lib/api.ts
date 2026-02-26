@@ -19,7 +19,14 @@ export interface ModelsResponse {
 
 export interface ConnectedModelsItem {
   providerId: string;
+  label: string;
   models: string[];
+  free?: boolean;
+}
+
+export interface FreeModel {
+  id: string;
+  name: string;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -32,6 +39,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error((body as { error?: string }).error ?? `Request failed: ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+export interface ModelsConfig {
+  providers: Record<string, { label: string; models: string[] }>;
+  free: {
+    provider: string;
+    label: string;
+    baseURL: string;
+    models: FreeModel[];
+  };
 }
 
 export interface DirListResponse {
@@ -61,9 +78,17 @@ export const api = {
   getModels: (providerName: string) =>
     request<ModelsResponse>(`/api/providers/models/${encodeURIComponent(providerName)}`),
 
-  /** Get all models grouped by connected providers. */
+  /** Get all models grouped by connected providers (includes free models). */
   getConnectedModels: () =>
     request<ConnectedModelsItem[]>("/api/providers/connected-models"),
+
+  /** Get detailed free model info (id + display name). */
+  getFreeModels: () =>
+    request<FreeModel[]>("/api/providers/free-models"),
+
+  /** Get the full models config (providers, labels, free models). */
+  getModelsConfig: () =>
+    request<ModelsConfig>("/api/providers/config"),
 
   /** Upsert a provider config (API key only). */
   saveProvider: (id: string, data: { apiKey: string }) =>

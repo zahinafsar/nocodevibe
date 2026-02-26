@@ -3,25 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
-import type { Provider } from "../lib/api";
+import type { Provider, ModelsConfig } from "../lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConnectProviderDialog } from "../components/settings/ConnectProviderDialog";
 
-const PROVIDERS = [
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "google", label: "Google" },
-] as const;
-
-function getLabel(id: string) {
-  return PROVIDERS.find((p) => p.value === id)?.label ?? id;
+function getLabel(id: string, config: ModelsConfig | null) {
+  return config?.providers[id]?.label ?? id;
 }
 
 export function SettingsPage() {
   const navigate = useNavigate();
 
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [config, setConfig] = useState<ModelsConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [connectTarget, setConnectTarget] = useState<{
@@ -32,8 +27,12 @@ export function SettingsPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const list = await api.getProviders();
+      const [list, cfg] = await Promise.all([
+        api.getProviders(),
+        api.getModelsConfig(),
+      ]);
       setProviders(list);
+      setConfig(cfg);
     } catch {
       toast.error("Failed to load settings.");
     }
@@ -43,15 +42,19 @@ export function SettingsPage() {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
+  const providerEntries = config
+    ? Object.entries(config.providers).map(([id, p]) => ({ value: id, label: p.label }))
+    : [];
+
   const connectedIds = new Set(providers.map((p) => p.id));
-  const connected = PROVIDERS.filter((p) => connectedIds.has(p.value));
-  const available = PROVIDERS.filter((p) => !connectedIds.has(p.value));
+  const connected = providerEntries.filter((p) => connectedIds.has(p.value));
+  const available = providerEntries.filter((p) => !connectedIds.has(p.value));
 
   async function handleDisconnect(providerId: string) {
     try {
       await api.deleteProvider(providerId);
       await refresh();
-      toast.success(`${getLabel(providerId)} disconnected.`);
+      toast.success(`${getLabel(providerId, config)} disconnected.`);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to disconnect.",
@@ -89,6 +92,36 @@ export function SettingsPage() {
         </div>
 
         <div className="flex flex-col gap-8">
+          {/* Free Models — always available */}
+          {config && (
+            <section>
+              <h2 className="text-sm font-medium text-foreground mb-2">
+                {config.free.label}
+              </h2>
+              <div className="bg-card rounded-lg border">
+                <div className="flex items-center justify-between gap-4 px-4 min-h-[56px] py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-sm font-medium text-foreground">
+                      OpenCode Zen
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    >
+                      Free
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {config.free.models.length} models
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                No API key needed.
+              </p>
+            </section>
+          )}
+
           {/* Connected */}
           <section>
             <h2 className="text-sm font-medium text-foreground mb-2">

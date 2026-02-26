@@ -16,6 +16,7 @@
     "@ai-sdk/anthropic": "^3.0.47",
     "@ai-sdk/google": "^3.0.31",
     "@ai-sdk/openai": "^3.0.33",
+    "@ai-sdk/openai-compatible": "^2.0.30",
     "@hono/node-server": "^1.13.0",
     "@prisma/client": "^6.0.0",
     "ai": "^6.0.99",

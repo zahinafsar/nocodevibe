@@ -1,0 +1,45 @@
+{
+  "providers": {
+    "anthropic": {
+      "label": "Anthropic",
+      "models": [
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514",
+        "claude-haiku-4-20250414",
+        "claude-3.5-sonnet-20241022"
+      ]
+    },
+    "openai": {
+      "label": "OpenAI",
+      "models": [
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "o3",
+        "o3-mini",
+        "o4-mini"
+      ]
+    },
+    "google": {
+      "label": "Google",
+      "models": [
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite"
+      ]
+    }
+  },
+  "free": {
+    "provider": "opencode",
+    "label": "Free Models",
+    "baseURL": "https://opencode.ai/zen/v1",
+    "models": [
+      { "id": "big-pickle", "name": "Big Pickle" },
+      { "id": "kimi-k2.5-free", "name": "Kimi K2.5 Free" },
+      { "id": "trinity-large-preview-free", "name": "Trinity Large Preview" }
+    ]
+  }
+}
