@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { AlertCircle, X } from "lucide-react";
-import type { ChatMessage, Session, ToolCall } from "../../lib/types";
+import type { ChatMessage, Message, Session, ToolCall } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
 import { MessageList } from "./MessageList";
@@ -15,8 +16,29 @@ function nextId() {
   return `local-${++_msgId}-${Date.now()}`;
 }
 
-export function ChatPanel() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+function dbMsgToChatMsg(m: Message): ChatMessage {
+  let images: string[] | undefined;
+  if (m.images) {
+    try { images = JSON.parse(m.images); } catch { /* ignore */ }
+  }
+  return {
+    id: m.id,
+    role: m.role as "user" | "assistant",
+    content: m.content,
+    images,
+  };
+}
+
+interface ChatPanelProps {
+  previewUrl: string;
+  onPreviewUrlChange: (url: string) => void;
+}
+
+export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
+  const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>();
+  const navigate = useNavigate();
+
+  const [sessionId, setSessionId] = useState<string | null>(urlSessionId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +51,9 @@ export function ChatPanel() {
 
   // Project directory state
   const [projectDir, setProjectDir] = useState("");
+
+  // Track whether we've done the initial load for the URL session
+  const initialLoadDone = useRef(false);
 
   // Fetch connected models on mount
   useEffect(() => {
@@ -46,40 +71,129 @@ export function ChatPanel() {
     });
   }, []);
 
-  const loadSession = useCallback(async (session: Session) => {
-    setSessionId(session.id);
-    setError(null);
-    try {
-      const msgs = await api.getMessages(session.id);
-      setMessages(
-        msgs.map((m) => ({
-          id: m.id,
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load messages");
-    }
-  }, []);
+  // Load session from URL on mount
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    if (!urlSessionId) return;
+    initialLoadDone.current = true;
+
+    (async () => {
+      try {
+        const sessions = await api.getSessions();
+        const session = sessions.find((s) => s.id === urlSessionId);
+        if (!session) {
+          navigate("/", { replace: true });
+          return;
+        }
+
+        setSessionId(session.id);
+
+        // Restore model + projectDir + previewUrl
+        if (session.providerId && session.modelId) {
+          setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
+        }
+        if (session.projectDir) {
+          setProjectDir(session.projectDir);
+        }
+        if (session.previewUrl) {
+          onPreviewUrlChange(session.previewUrl);
+        }
+
+        const msgs = await api.getMessages(session.id);
+        setMessages(msgs.map(dbMsgToChatMsg));
+      } catch {
+        navigate("/", { replace: true });
+      }
+    })();
+  }, [urlSessionId, navigate, onPreviewUrlChange]);
+
+  const loadSession = useCallback(
+    async (session: Session) => {
+      setSessionId(session.id);
+      setError(null);
+      navigate(`/session/${session.id}`);
+
+      // Restore model + projectDir + previewUrl from session
+      if (session.providerId && session.modelId) {
+        setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
+      }
+      if (session.projectDir) {
+        setProjectDir(session.projectDir);
+      }
+      if (session.previewUrl) {
+        onPreviewUrlChange(session.previewUrl);
+      }
+
+      try {
+        const msgs = await api.getMessages(session.id);
+        setMessages(msgs.map(dbMsgToChatMsg));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load messages");
+      }
+    },
+    [navigate, onPreviewUrlChange],
+  );
 
   const createSession = useCallback(async () => {
     setError(null);
     try {
-      const session = await api.createSession();
+      const session = await api.createSession({
+        providerId: selectedModel?.providerId,
+        modelId: selectedModel?.modelId,
+        projectDir: projectDir || undefined,
+        previewUrl,
+      });
       setSessionId(session.id);
       setMessages([]);
       setRefreshKey((k) => k + 1);
+      navigate(`/session/${session.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create session");
     }
-  }, []);
+  }, [selectedModel, projectDir, previewUrl, navigate]);
 
   const deleteSession = useCallback(() => {
     setSessionId(null);
     setMessages([]);
     setError(null);
-  }, []);
+    navigate("/");
+  }, [navigate]);
+
+  // Persist model selection to session
+  const handleModelChange = useCallback(
+    (model: ModelSelection | null) => {
+      setSelectedModel(model);
+      if (sessionId && model) {
+        api.updateSession(sessionId, {
+          providerId: model.providerId,
+          modelId: model.modelId,
+        }).catch(() => {});
+      }
+    },
+    [sessionId],
+  );
+
+  // Persist projectDir to session
+  const handleProjectDirChange = useCallback(
+    (dir: string) => {
+      setProjectDir(dir);
+      if (sessionId) {
+        api.updateSession(sessionId, { projectDir: dir }).catch(() => {});
+      }
+    },
+    [sessionId],
+  );
+
+  // Persist previewUrl to session when it changes
+  const prevPreviewUrl = useRef(previewUrl);
+  useEffect(() => {
+    if (previewUrl !== prevPreviewUrl.current) {
+      prevPreviewUrl.current = previewUrl;
+      if (sessionId) {
+        api.updateSession(sessionId, { previewUrl }).catch(() => {});
+      }
+    }
+  }, [previewUrl, sessionId]);
 
   const sendMessage = useCallback(
     async (prompt: string, screenshots?: string[]) => {
@@ -93,10 +207,17 @@ export function ChatPanel() {
       let sid = sessionId;
       if (!sid) {
         try {
-          const session = await api.createSession();
+          const session = await api.createSession({
+            providerId: selectedModel.providerId,
+            modelId: selectedModel.modelId,
+            projectDir: projectDir || undefined,
+            previewUrl,
+          });
           sid = session.id;
           setSessionId(sid);
           setRefreshKey((k) => k + 1);
+          // Update URL without triggering React Router remount
+          window.history.replaceState(null, "", `/editor/session/${sid}`);
         } catch (err) {
           setError(err instanceof Error ? err.message : "Failed to create session");
           return;
@@ -187,7 +308,7 @@ export function ChatPanel() {
         abortRef.current = null;
       }
     },
-    [sessionId, selectedModel, projectDir],
+    [sessionId, selectedModel, projectDir, previewUrl],
   );
 
   const isEmpty = messages.length === 0;
@@ -231,9 +352,9 @@ export function ChatPanel() {
               variant="landing"
               connectedModels={connectedModels}
               selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
+              onModelChange={handleModelChange}
               projectDir={projectDir}
-              onProjectDirChange={setProjectDir}
+              onProjectDirChange={handleProjectDirChange}
             />
           </div>
         ) : (
@@ -246,9 +367,9 @@ export function ChatPanel() {
               onStop={() => abortRef.current?.()}
               connectedModels={connectedModels}
               selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
+              onModelChange={handleModelChange}
               projectDir={projectDir}
-              onProjectDirChange={setProjectDir}
+              onProjectDirChange={handleProjectDirChange}
             />
           </>
         )}

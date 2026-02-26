@@ -5,10 +5,34 @@ const sessions = new Hono();
 
 // POST /api/sessions — create a new session
 sessions.post("/", async (c) => {
-  const body = await c.req.json<{ title?: string }>();
-  const title = body.title || "New Session";
-  const created = await session.create(title);
+  const body = await c.req.json<{
+    title?: string;
+    providerId?: string;
+    modelId?: string;
+    projectDir?: string;
+    previewUrl?: string;
+  }>();
+  const created = await session.create({
+    title: body.title || "New Session",
+    providerId: body.providerId,
+    modelId: body.modelId,
+    projectDir: body.projectDir,
+    previewUrl: body.previewUrl,
+  });
   return c.json(created, 201);
+});
+
+// PATCH /api/sessions/:id — update session settings
+sessions.patch("/:id", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<{
+    providerId?: string;
+    modelId?: string;
+    projectDir?: string;
+    previewUrl?: string;
+  }>();
+  const updated = await session.update(id, body);
+  return c.json(updated);
 });
 
 // GET /api/sessions — list all sessions sorted by updatedAt desc

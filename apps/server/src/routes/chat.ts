@@ -35,8 +35,8 @@ chat.post("/", async (c) => {
     });
 
     try {
-      // Save user message
-      await message.append(sessionId, "user", prompt);
+      // Save user message (with images if present)
+      await message.append(sessionId, "user", prompt, images);
 
       // Run the agent and stream events
       for await (const event of runAgent({

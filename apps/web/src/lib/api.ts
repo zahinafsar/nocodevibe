@@ -74,10 +74,32 @@ export const api = {
   // ── Sessions ──────────────────────────────────────────────
 
   /** Create a new chat session. */
-  createSession: (title?: string) =>
+  createSession: (opts?: {
+    title?: string;
+    providerId?: string;
+    modelId?: string;
+    projectDir?: string;
+    previewUrl?: string;
+  }) =>
     request<Session>("/api/sessions", {
       method: "POST",
-      body: JSON.stringify({ title: title ?? "New Session" }),
+      body: JSON.stringify({
+        title: opts?.title ?? "New Session",
+        providerId: opts?.providerId,
+        modelId: opts?.modelId,
+        projectDir: opts?.projectDir,
+        previewUrl: opts?.previewUrl,
+      }),
+    }),
+
+  /** Update session settings (model, projectDir, previewUrl). */
+  updateSession: (
+    id: string,
+    data: { providerId?: string; modelId?: string; projectDir?: string; previewUrl?: string },
+  ) =>
+    request<Session>(`/api/sessions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     }),
 
   /** List all sessions (newest first). */

@@ -5,18 +5,26 @@ import { Button } from "@/components/ui/button";
 import { SelectionOverlay } from "./SelectionOverlay";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 
-const DEFAULT_URL = "http://localhost:3000";
 const LOAD_TIMEOUT_MS = 10_000;
 
-export function PreviewPanel() {
-  const [url, setUrl] = useState(DEFAULT_URL);
-  const [inputValue, setInputValue] = useState(DEFAULT_URL);
+interface PreviewPanelProps {
+  url: string;
+  onUrlChange: (url: string) => void;
+}
+
+export function PreviewPanel({ url, onUrlChange }: PreviewPanelProps) {
+  const [inputValue, setInputValue] = useState(url);
   const [error, setError] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { addScreenshot } = useElementSelection();
+
+  // Sync input when url prop changes (e.g. session switch)
+  useEffect(() => {
+    setInputValue(url);
+  }, [url]);
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -35,11 +43,11 @@ export function PreviewPanel() {
   const navigateIframe = useCallback(
     (targetUrl: string) => {
       setError(false);
-      setUrl(targetUrl);
+      onUrlChange(targetUrl);
       setInputValue(targetUrl);
       startLoadTimeout();
     },
-    [startLoadTimeout],
+    [onUrlChange, startLoadTimeout],
   );
 
   const handleReload = useCallback(() => {

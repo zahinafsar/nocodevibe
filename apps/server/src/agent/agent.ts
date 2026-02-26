@@ -49,10 +49,26 @@ export async function* runAgent({
     role: "user";
     content: Array<{ type: "text"; text: string } | { type: "image"; image: string }>;
   };
-  const messages: Array<TextContent | MultiPartContent> = history.map((m) => ({
-    role: m.role as "user" | "assistant" | "system",
-    content: m.content,
-  }));
+  const messages: Array<TextContent | MultiPartContent> = history.map((m) => {
+    // Parse stored images for user messages
+    if (m.role === "user" && m.images) {
+      try {
+        const imgs: string[] = JSON.parse(m.images);
+        if (imgs.length > 0) {
+          const parts: MultiPartContent["content"] = imgs.map((dataUrl) => ({
+            type: "image" as const,
+            image: dataUrl,
+          }));
+          parts.push({ type: "text", text: m.content });
+          return { role: "user" as const, content: parts };
+        }
+      } catch { /* fall through to text-only */ }
+    }
+    return {
+      role: m.role as "user" | "assistant" | "system",
+      content: m.content,
+    };
+  });
 
   // Append the current user prompt (with images if present)
   if (images && images.length > 0) {

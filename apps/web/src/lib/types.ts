@@ -9,6 +9,10 @@ export type SSEEvent =
 export interface Session {
   id: string;
   title: string;
+  providerId?: string | null;
+  modelId?: string | null;
+  projectDir?: string | null;
+  previewUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +22,7 @@ export interface Message {
   sessionId: string;
   role: "user" | "assistant" | "system";
   content: string;
+  images?: string | null; // JSON string from DB
   createdAt: string;
 }
 

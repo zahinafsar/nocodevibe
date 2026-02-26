@@ -32,3 +32,10 @@ proxy.use(
     rewriteRequestPath: (path) => path.replace(/^\/editor/, ""),
   })
 );
+
+// SPA fallback — serve index.html for any unmatched /editor/* routes
+// (e.g. /editor/session/abc123)
+proxy.get("/editor/*", (c) => {
+  if (!editorHtml) return c.text("Editor not built. Run: cd apps/web && bun run build", 404);
+  return c.html(editorHtml);
+});

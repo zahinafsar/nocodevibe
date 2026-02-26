@@ -11,6 +11,7 @@ export function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<MainPage />} />
+          <Route path="/session/:sessionId" element={<MainPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>
