@@ -2,13 +2,16 @@
   "name": "coodeen",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "bun run --cwd apps/server dev & bun run --cwd apps/web dev",
     "dev:server": "bun run --cwd apps/server dev",
     "dev:web": "bun run --cwd apps/web dev",
     "build": "bun run --cwd apps/server build && bun run --cwd apps/web build",
     "typecheck": "bun run --cwd apps/server typecheck && bun run --cwd apps/web typecheck",
+    "build:npm": "bun run --cwd apps/web build && bun run --cwd apps/server db:generate && bun run --cwd packages/cli build:cli && mkdir -p packages/cli/prisma && cp apps/server/prisma/schema.prisma packages/cli/prisma/schema.prisma && mkdir -p packages/cli/dist/static && cp -r apps/server/src/static/. packages/cli/dist/static/",
+    "publish:npm": "bun run build:npm && cd packages/cli && npm publish",
+    "publish:npm:dry": "bun run build:npm && cd packages/cli && npm pack --dry-run",
     "lint": "eslint ."
   },
   "devDependencies": {

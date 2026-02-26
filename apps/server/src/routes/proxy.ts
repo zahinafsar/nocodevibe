@@ -1,11 +1,18 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/bun";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // ── Read dist/index.html once at startup ────────────
 // Vite builds with base: "/editor/" so all paths already have the prefix.
-const DIST_DIR = resolve(import.meta.dir, "../static");
+// Resolve static dir: works in dev (../static from routes/) and bundled CLI (static/ next to dist/)
+const __curdir = dirname(fileURLToPath(import.meta.url));
+const DIST_DIR = [
+  resolve(__curdir, "../static"),  // dev: apps/server/src/routes → apps/server/src/static
+  resolve(__curdir, "static"),     // bundled CLI: dist/ → dist/static
+].find((d) => existsSync(d)) ?? resolve(__curdir, "../static");
+
 let editorHtml = "";
 try {
   editorHtml = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8");
@@ -29,7 +36,7 @@ proxy.use(
   "/editor/*",
   serveStatic({
     root: DIST_DIR,
-    rewriteRequestPath: (path) => path.replace(/^\/editor/, ""),
+    rewriteRequestPath: (path: string) => path.replace(/^\/editor/, ""),
   })
 );
 

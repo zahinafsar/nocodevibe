@@ -1,14 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertCircle, X } from "lucide-react";
+import { toast } from "sonner";
 import type { ChatMessage, Message, Session, ToolCall } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
 import { MessageList } from "./MessageList";
 import { PromptInput, type ModelSelection } from "./PromptInput";
 import { SessionDrawer } from "./SessionDrawer";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import logoSvg from "../../assets/logo.svg";
 
 let _msgId = 0;
@@ -41,7 +39,6 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -55,7 +52,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   // Track whether we've done the initial load for the URL session
   const initialLoadDone = useRef(false);
 
-  // Fetch connected models on mount
+  // Fetch connected models + default CWD on mount
   useEffect(() => {
     api.getConnectedModels().then((models) => {
       setConnectedModels(models);
@@ -69,6 +66,15 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
     }).catch(() => {
       // silently fail — will show empty model list
     });
+
+    // Auto-populate projectDir from CLI launch directory (only if not in a session yet)
+    if (!urlSessionId) {
+      api.getCwd().then(({ cwd }) => {
+        if (cwd && !projectDir) {
+          setProjectDir(cwd);
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   // Load session from URL on mount
@@ -110,7 +116,6 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   const loadSession = useCallback(
     async (session: Session) => {
       setSessionId(session.id);
-      setError(null);
       navigate(`/session/${session.id}`);
 
       // Restore model + projectDir + previewUrl from session
@@ -128,14 +133,13 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         const msgs = await api.getMessages(session.id);
         setMessages(msgs.map(dbMsgToChatMsg));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load messages");
+        toast.error(err instanceof Error ? err.message : "Failed to load messages");
       }
     },
     [navigate, onPreviewUrlChange],
   );
 
   const createSession = useCallback(async () => {
-    setError(null);
     try {
       const session = await api.createSession({
         providerId: selectedModel?.providerId,
@@ -148,14 +152,13 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
       setRefreshKey((k) => k + 1);
       navigate(`/session/${session.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create session");
+      toast.error(err instanceof Error ? err.message : "Failed to create session");
     }
   }, [selectedModel, projectDir, previewUrl, navigate]);
 
   const deleteSession = useCallback(() => {
     setSessionId(null);
     setMessages([]);
-    setError(null);
     navigate("/");
   }, [navigate]);
 
@@ -198,11 +201,9 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   const sendMessage = useCallback(
     async (prompt: string, screenshots?: string[]) => {
       if (!selectedModel) {
-        setError("Please select a model first.");
+        toast.error("Please select a model or connect a provider from settings.");
         return;
       }
-
-      setError(null);
 
       let sid = sessionId;
       if (!sid) {
@@ -219,7 +220,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
           // Update URL without triggering React Router remount
           window.history.replaceState(null, "", `/editor/session/${sid}`);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to create session");
+          toast.error(err instanceof Error ? err.message : "Failed to create session");
           return;
         }
       }
@@ -289,7 +290,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
               );
               break;
             case "error":
-              setError(event.message);
+              toast.error(event.message);
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, isStreaming: false } : m)),
               );
@@ -298,7 +299,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          setError(err instanceof Error ? err.message : "Streaming failed");
+          toast.error(err instanceof Error ? err.message : "Streaming failed");
         }
         setMessages((prev) =>
           prev.map((m) => (m.id === assistantId ? { ...m, isStreaming: false } : m)),
@@ -323,20 +324,6 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         refreshKey={refreshKey}
       />
       <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
-        {error && (
-          <Alert variant="destructive" className="m-3 mb-0">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex-1">{error}</AlertDescription>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 shrink-0"
-              onClick={() => setError(null)}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </Alert>
-        )}
         {isEmpty ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-10 px-6 pb-20 max-w-[680px] mx-auto w-full">
             <img

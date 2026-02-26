@@ -2,6 +2,9 @@
   "name": "@coodeen/server",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
@@ -13,6 +16,7 @@
     "@ai-sdk/anthropic": "^3.0.47",
     "@ai-sdk/google": "^3.0.31",
     "@ai-sdk/openai": "^3.0.33",
+    "@hono/node-server": "^1.13.0",
     "@prisma/client": "^6.0.0",
     "ai": "^6.0.99",
     "hono": "^4.7.0"

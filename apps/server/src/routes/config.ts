@@ -29,4 +29,9 @@ configRoutes.put("/active-provider", async (c) => {
   return c.json({ providerId: body.providerId });
 });
 
+// GET /api/config/cwd — returns the directory where the CLI was launched
+configRoutes.get("/cwd", (c) => {
+  return c.json({ cwd: process.env.COODEEN_CWD || null });
+});
+
 export { configRoutes };

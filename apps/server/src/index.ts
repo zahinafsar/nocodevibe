@@ -1,4 +1,4 @@
-// Polyfill TextDecoderStream for older Bun versions
+// Polyfill TextDecoderStream for older runtimes
 if (typeof globalThis.TextDecoderStream === "undefined") {
   (globalThis as any).TextDecoderStream = class TextDecoderStream extends TransformStream<Uint8Array, string> {
     constructor(encoding = "utf-8", options?: TextDecoderOptions) {
@@ -29,11 +29,11 @@ import { proxy } from "./routes/proxy.js";
 
 const app = new Hono();
 
-// CORS middleware — allow Vite dev origin
+// CORS middleware — allow all in production (same-origin), Vite dev origin in dev
 app.use(
   "*",
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.NODE_ENV === "development" ? "http://localhost:5173" : "*",
   })
 );
 
@@ -69,10 +69,11 @@ app.route("/api/fs", fs);
 // Editor (built dist)
 app.route("/", proxy);
 
+// Named export for CLI / Node.js usage
+export { app };
+
+// Bun dev server — default export used by `bun run src/index.ts`
 const port = Number(process.env.PORT) || 3001;
-
-console.log(`Coodeen server listening on port ${port}`);
-
 export default {
   port,
   fetch: app.fetch,

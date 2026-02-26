@@ -1,6 +1,8 @@
 import type { Session, Message, SSEEvent } from "./types";
 
-const BASE_URL = "http://localhost:3001";
+// Empty string = same-origin (works in both dev proxy and production).
+// For local dev with separate Vite + server, set VITE_API_URL in .env.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 export interface Provider {
   id: string;
@@ -39,6 +41,11 @@ export interface DirListResponse {
 }
 
 export const api = {
+  // ── Config ─────────────────────────────────────────────
+
+  /** Get the CWD where the CLI was launched (null in dev mode). */
+  getCwd: () => request<{ cwd: string | null }>("/api/config/cwd"),
+
   // ── Filesystem ──────────────────────────────────────────
 
   /** List subdirectories at a path (defaults to $HOME). */
