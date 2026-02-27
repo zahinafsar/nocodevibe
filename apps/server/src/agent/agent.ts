@@ -84,7 +84,7 @@ export async function* runAgent({
 
   // 3. System prompt
   const home = process.env.HOME || process.env.USERPROFILE || "/";
-  const systemPrompt = `You are Coodeen, a coding assistant. You are running on the ${modelId} model. You have full filesystem access — you can read, write, and edit any file on the user's machine. The user's home directory is ${home}. The current project directory is ${projectDir}. Relative paths resolve against the project directory. Always use absolute paths when referencing files outside the project directory.`;
+  const systemPrompt = `You are Coodeen, a coding assistant. You are running on the ${modelId} model. You have full filesystem access — you can read, write, and edit any file on the user's machine. The user's home directory is ${home}. The current project directory is ${projectDir}. Relative paths resolve against the project directory. Always use absolute paths when referencing files outside the project directory. You can search the web with the websearch tool for current information, and use codesearch for programming documentation, API references, and code examples.`;
 
   // 4. Create tools scoped to the project directory
   const tools = createTools(projectDir);

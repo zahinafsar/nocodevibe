@@ -3,6 +3,9 @@ import { createWriteTool } from "./write.js";
 import { createEditTool } from "./edit.js";
 import { createGlobTool } from "./glob.js";
 import { createGrepTool } from "./grep.js";
+import { createWebFetchTool } from "./webfetch.js";
+import { createWebSearchTool } from "./websearch.js";
+import { createCodeSearchTool } from "./codesearch.js";
 
 /**
  * Create all tools scoped to a specific project directory.
@@ -15,5 +18,8 @@ export function createTools(projectDir: string) {
     edit: createEditTool(projectDir),
     glob: createGlobTool(projectDir),
     grep: createGrepTool(projectDir),
+    webfetch: createWebFetchTool(),
+    websearch: createWebSearchTool(),
+    codesearch: createCodeSearchTool(),
   } as const;
 }

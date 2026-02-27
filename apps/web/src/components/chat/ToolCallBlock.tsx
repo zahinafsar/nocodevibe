@@ -13,6 +13,9 @@ import {
   Loader2,
   Check,
   Terminal,
+  Globe,
+  Code,
+  Link,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -31,6 +34,9 @@ const TOOL_META: Record<string, ToolMeta> = {
   grep: { icon: Search, label: "Grep", color: "text-violet-400" },
   edit: { icon: Pencil, label: "Edit", color: "text-amber-400" },
   write: { icon: FilePlus, label: "Write", color: "text-emerald-400" },
+  webfetch: { icon: Link, label: "Fetch URL", color: "text-teal-400" },
+  websearch: { icon: Globe, label: "Web Search", color: "text-cyan-400" },
+  codesearch: { icon: Code, label: "Code Search", color: "text-orange-400" },
 };
 
 const DEFAULT_META: ToolMeta = {
@@ -66,6 +72,12 @@ function getSubtitle(tc: ToolCall): string {
       return String(input.file_path ?? "");
     case "write":
       return String(input.file_path ?? "");
+    case "webfetch":
+      return String(input.url ?? "");
+    case "websearch":
+      return String(input.query ?? "");
+    case "codesearch":
+      return String(input.query ?? "");
     default:
       return "";
   }
