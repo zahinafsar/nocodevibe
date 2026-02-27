@@ -6,20 +6,38 @@ import { createGrepTool } from "./grep.js";
 import { createWebFetchTool } from "./webfetch.js";
 import { createWebSearchTool } from "./websearch.js";
 import { createCodeSearchTool } from "./codesearch.js";
+import { createPlanWriteTool, createPlanExitTool } from "./plan.js";
 
 /**
  * Create all tools scoped to a specific project directory.
- * Relative paths in tool calls resolve against this directory.
+ * - Agent mode: full access (read + write + edit)
+ * - Plan mode: read-only + plan_write (plan file only) + plan_exit
  */
-export function createTools(projectDir: string) {
-  return {
+export function createTools(
+  projectDir: string,
+  mode: "agent" | "plan" = "agent",
+  planPath?: string,
+) {
+  const base = {
     read: createReadTool(projectDir),
-    write: createWriteTool(projectDir),
-    edit: createEditTool(projectDir),
     glob: createGlobTool(projectDir),
     grep: createGrepTool(projectDir),
     webfetch: createWebFetchTool(),
     websearch: createWebSearchTool(),
     codesearch: createCodeSearchTool(),
-  } as const;
+  };
+
+  if (mode === "plan" && planPath) {
+    return {
+      ...base,
+      plan_write: createPlanWriteTool(planPath),
+      plan_exit: createPlanExitTool(planPath),
+    };
+  }
+
+  return {
+    ...base,
+    write: createWriteTool(projectDir),
+    edit: createEditTool(projectDir),
+  };
 }

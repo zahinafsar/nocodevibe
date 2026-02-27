@@ -16,6 +16,8 @@ import {
   Globe,
   Code,
   Link,
+  ClipboardList,
+  LogOut,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,8 @@ const TOOL_META: Record<string, ToolMeta> = {
   webfetch: { icon: Link, label: "Fetch URL", color: "text-teal-400" },
   websearch: { icon: Globe, label: "Web Search", color: "text-cyan-400" },
   codesearch: { icon: Code, label: "Code Search", color: "text-orange-400" },
+  plan_write: { icon: ClipboardList, label: "Write Plan", color: "text-indigo-400" },
+  plan_exit: { icon: LogOut, label: "Exit Plan Mode", color: "text-rose-400" },
 };
 
 const DEFAULT_META: ToolMeta = {
@@ -78,6 +82,10 @@ function getSubtitle(tc: ToolCall): string {
       return String(input.query ?? "");
     case "codesearch":
       return String(input.query ?? "");
+    case "plan_write":
+      return "Updating plan...";
+    case "plan_exit":
+      return "Switching to agent mode";
     default:
       return "";
   }

@@ -2,11 +2,18 @@ import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent } fro
 import { Send, Square, X, Folder, Cpu } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import type { ConnectedModelsItem } from "../../lib/api";
+import type { Mode } from "../../lib/types";
 import { FolderPickerDialog } from "./FolderPickerDialog";
 import { ModelPickerDialog } from "./ModelPickerDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export interface ModelSelection {
@@ -25,6 +32,8 @@ interface PromptInputProps {
   onModelChange?: (selection: ModelSelection) => void;
   projectDir?: string;
   onProjectDirChange?: (dir: string) => void;
+  mode?: Mode;
+  onModeChange?: (mode: Mode) => void;
 }
 
 export function PromptInput({
@@ -38,6 +47,8 @@ export function PromptInput({
   onModelChange,
   projectDir = "",
   onProjectDirChange,
+  mode = "agent",
+  onModeChange,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -199,6 +210,24 @@ export function PromptInput({
         )}
       </div>
       <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent"
+            >
+              {mode === "agent" ? "Agent" : "Plan"}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => onModeChange?.("agent")}>
+              Agent
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onModeChange?.("plan")}>
+              Plan
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {hasModels && (
           <button
             type="button"

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { ChatMessage, Message, Session, ToolCall } from "../../lib/types";
+import type { ChatMessage, Message, Session, ToolCall, Mode } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
 import { MessageList } from "./MessageList";
@@ -48,6 +48,9 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
 
   // Project directory state
   const [projectDir, setProjectDir] = useState("");
+
+  // Mode state
+  const [mode, setMode] = useState<Mode>("agent");
 
   // Track whether we've done the initial load for the URL session
   const initialLoadDone = useRef(false);
@@ -238,6 +241,8 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setStreaming(true);
 
+      let pendingModeSwitch = false;
+
       try {
         const stream = api.streamChat(
           sid,
@@ -246,6 +251,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
           selectedModel.modelId,
           projectDir || undefined,
           screenshots,
+          mode,
         );
         abortRef.current = stream.abort;
 
@@ -282,6 +288,11 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
                 }),
               );
               break;
+            case "mode_switch":
+              // Auto-switch mode and flag for auto-execution after stream ends
+              setMode(event.mode as Mode);
+              pendingModeSwitch = true;
+              break;
             case "done":
               setMessages((prev) =>
                 prev.map((m) =>
@@ -308,8 +319,99 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         setStreaming(false);
         abortRef.current = null;
       }
+
+      // After plan_exit, auto-send a follow-up in agent mode to execute the plan
+      if (pendingModeSwitch && sid) {
+        // Small delay so UI updates before the next stream starts
+        await new Promise((r) => setTimeout(r, 100));
+        // Re-invoke sendMessage in agent mode — mode state is already "agent"
+        const execPrompt = "Execute the plan that was just created. Follow it step by step.";
+        const execUserMsg: ChatMessage = { id: nextId(), role: "user", content: execPrompt };
+        const execAssistantId = nextId();
+        const execAssistantMsg: ChatMessage = {
+          id: execAssistantId,
+          role: "assistant",
+          content: "",
+          toolCalls: [],
+          isStreaming: true,
+        };
+        setMessages((prev) => [...prev, execUserMsg, execAssistantMsg]);
+        setStreaming(true);
+
+        try {
+          const execStream = api.streamChat(
+            sid,
+            execPrompt,
+            selectedModel.providerId,
+            selectedModel.modelId,
+            projectDir || undefined,
+            undefined,
+            "agent",
+          );
+          abortRef.current = execStream.abort;
+
+          for await (const event of execStream) {
+            switch (event.type) {
+              case "token":
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === execAssistantId ? { ...m, content: m.content + event.content } : m,
+                  ),
+                );
+                break;
+              case "tool_call":
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === execAssistantId
+                      ? { ...m, toolCalls: [...(m.toolCalls ?? []), { name: event.name, input: event.input } as ToolCall] }
+                      : m,
+                  ),
+                );
+                break;
+              case "tool_result":
+                setMessages((prev) =>
+                  prev.map((m) => {
+                    if (m.id !== execAssistantId) return m;
+                    const calls = [...(m.toolCalls ?? [])];
+                    for (let i = calls.length - 1; i >= 0; i--) {
+                      if (calls[i].name === event.name && calls[i].output === undefined) {
+                        calls[i] = { ...calls[i], output: event.output };
+                        break;
+                      }
+                    }
+                    return { ...m, toolCalls: calls };
+                  }),
+                );
+                break;
+              case "done":
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === execAssistantId ? { ...m, isStreaming: false, id: event.messageId || m.id } : m,
+                  ),
+                );
+                break;
+              case "error":
+                toast.error(event.message);
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === execAssistantId ? { ...m, isStreaming: false } : m)),
+                );
+                break;
+            }
+          }
+        } catch (err) {
+          if ((err as Error).name !== "AbortError") {
+            toast.error(err instanceof Error ? err.message : "Streaming failed");
+          }
+          setMessages((prev) =>
+            prev.map((m) => (m.id === execAssistantId ? { ...m, isStreaming: false } : m)),
+          );
+        } finally {
+          setStreaming(false);
+          abortRef.current = null;
+        }
+      }
     },
-    [sessionId, selectedModel, projectDir, previewUrl],
+    [sessionId, selectedModel, projectDir, previewUrl, mode],
   );
 
   const isEmpty = messages.length === 0;
@@ -342,6 +444,8 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
               onModelChange={handleModelChange}
               projectDir={projectDir}
               onProjectDirChange={handleProjectDirChange}
+              mode={mode}
+              onModeChange={setMode}
             />
           </div>
         ) : (
@@ -357,6 +461,8 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
               onModelChange={handleModelChange}
               projectDir={projectDir}
               onProjectDirChange={handleProjectDirChange}
+              mode={mode}
+              onModeChange={setMode}
             />
           </>
         )}
