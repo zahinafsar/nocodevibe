@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 
 // ── Tool metadata ────────────────────────────────────────
 
@@ -138,7 +141,7 @@ interface ToolCallBlockProps {
 }
 
 export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(toolCall.name === "plan_write");
   const hasOutput = toolCall.output !== undefined;
   const meta = getMeta(toolCall.name);
   const Icon = meta.icon;
@@ -162,7 +165,16 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
       ? `data:${imageOutput.mime};base64,${imageOutput.base64}`
       : null;
 
-  const hasExpandableContent = hasOutput && outputStr.length > 0;
+  // Extract plan markdown content from plan_write input
+  const planContent =
+    toolCall.name === "plan_write"
+      ? String((getInput(toolCall) as { content?: string }).content ?? "")
+      : "";
+
+  const hasExpandableContent =
+    toolCall.name === "plan_write"
+      ? planContent.length > 0
+      : hasOutput && outputStr.length > 0;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="mb-1.5">
@@ -225,7 +237,18 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
 
       {hasExpandableContent && (
         <CollapsibleContent>
-          {imageDataUrl ? (
+          {toolCall.name === "plan_write" && planContent ? (
+            <div className="mx-2 mb-1.5 bg-muted/50 rounded-md p-3 max-h-[400px] overflow-y-auto">
+              <div className="prose prose-invert prose-sm max-w-none prose-pre:bg-black/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-code:bg-black/30 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-a:text-blue-400 prose-headings:text-foreground/90">
+                <ReactMarkdown
+                  rehypePlugins={[rehypeHighlight]}
+                  remarkPlugins={[remarkGfm]}
+                >
+                  {planContent}
+                </ReactMarkdown>
+              </div>
+            </div>
+          ) : imageDataUrl ? (
             <div className="mx-2 mb-1.5">
               <img
                 src={imageDataUrl}
