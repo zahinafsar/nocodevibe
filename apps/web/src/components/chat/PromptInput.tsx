@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent } from "react";
-import { Send, Square, X, Folder, Cpu, ImagePlus } from "lucide-react";
+import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
+import { Send, Square, X, Folder, Cpu, ImagePlus, FileCode } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import type { ConnectedModelsItem } from "../../lib/api";
-import type { Mode } from "../../lib/types";
+import type { Mode, FileReference } from "../../lib/types";
 import { FolderPickerDialog } from "./FolderPickerDialog";
 import { ModelPickerDialog } from "./ModelPickerDialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,6 +56,10 @@ interface PromptInputProps {
   onProjectDirChange?: (dir: string) => void;
   mode?: Mode;
   onModeChange?: (mode: Mode) => void;
+  fileReferences?: FileReference[];
+  onAddFileReference?: (ref: FileReference) => void;
+  onRemoveFileReference?: (index: number) => void;
+  onClearFileReferences?: () => void;
 }
 
 export function PromptInput({
@@ -71,11 +75,16 @@ export function PromptInput({
   onProjectDirChange,
   mode = "agent",
   onModeChange,
+  fileReferences = [],
+  onAddFileReference,
+  onRemoveFileReference,
+  onClearFileReferences,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const {
     selections,
     removeSelection,
@@ -99,11 +108,25 @@ export function PromptInput({
       }
 
       let finalPrompt = value;
+
+      // Prepend file references (path + lines only — agent reads the file)
+      if (fileReferences.length > 0) {
+        const refLines = fileReferences
+          .map((r) =>
+            r.startLine === 0 && r.endLine === 0
+              ? `[File: ${r.filePath}]`
+              : `[File: ${r.filePath}:${r.startLine}-${r.endLine}]`,
+          )
+          .join("\n");
+        finalPrompt = refLines + "\n\n" + finalPrompt;
+        onClearFileReferences?.();
+      }
+
       if (selections.length > 0) {
         const selectionLines = selections
           .map((s) => `[Element: ${s.component} in ${s.file}:${s.line}]`)
           .join("\n");
-        finalPrompt = selectionLines + "\n" + value;
+        finalPrompt = selectionLines + "\n" + finalPrompt;
         clearSelections();
       }
 
@@ -134,7 +157,7 @@ export function PromptInput({
       onSubmit(finalPrompt, allImages.length > 0 ? allImages : undefined);
       clearScreenshots();
     },
-    [onSubmit, disabled, selections, clearSelections, screenshots, clearScreenshots],
+    [onSubmit, disabled, selections, clearSelections, screenshots, clearScreenshots, fileReferences, onClearFileReferences],
   );
 
   const handleKeyDown = useCallback(
@@ -198,6 +221,36 @@ export function PromptInput({
     [addScreenshot],
   );
 
+  // Drag-drop file from tree
+  const handleDragOver = useCallback((e: DragEvent) => {
+    if (e.dataTransfer.types.includes("application/x-file-path")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const droppedPath = e.dataTransfer.getData("application/x-file-path");
+      if (droppedPath && onAddFileReference) {
+        onAddFileReference({
+          filePath: droppedPath,
+          startLine: 0,
+          endLine: 0,
+          content: "",
+        });
+      }
+    },
+    [onAddFileReference],
+  );
+
   const isLanding = variant === "landing";
   const hasModels = connectedModels.length > 0;
 
@@ -205,10 +258,48 @@ export function PromptInput({
     <form
       className={cn(
         "flex flex-col gap-2 shrink-0",
-        isLanding ? "w-full" : "p-3 border-t bg-card"
+        isLanding ? "w-full" : "p-3 border-t bg-card",
+        dragOver && "ring-2 ring-primary/50 ring-inset rounded-md",
       )}
       onSubmit={handleSubmit}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
+      {/* File reference badges */}
+      {fileReferences.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {fileReferences.map((ref, i) => {
+            const shortPath = ref.filePath.split("/").pop() ?? ref.filePath;
+            return (
+              <Badge
+                key={`${ref.filePath}-${ref.startLine}-${ref.endLine}`}
+                variant="secondary"
+                className="gap-1 pr-1"
+              >
+                <FileCode className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {shortPath}
+                  {ref.startLine > 0 && (
+                    <span className="text-blue-400 ml-1">
+                      L{ref.startLine}{ref.startLine !== ref.endLine ? `-L${ref.endLine}` : ""}
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="ml-1 rounded-full hover:bg-destructive/20 p-0.5"
+                  onClick={() => onRemoveFileReference?.(i)}
+                  aria-label="Remove file reference"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+
       {/* Element selection badges */}
       {selections.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

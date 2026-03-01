@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import type { ChatMessage } from "../../lib/types";
 import { MessageBubble } from "./MessageBubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,11 +8,52 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const isStreamingRef = useRef(false);
+
+  const isStreaming = messages.some((m) => m.isStreaming);
+  isStreamingRef.current = isStreaming;
+
+  /** Resolve the actual scrollable viewport inside Radix ScrollArea */
+  const getViewport = useCallback(
+    () =>
+      wrapperRef.current?.querySelector<HTMLDivElement>(
+        '[data-slot="scroll-area-viewport"]',
+      ) ?? null,
+    [],
+  );
+
+  const isNearBottom = useCallback(() => {
+    const el = getViewport();
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+  }, [getViewport]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!isNearBottom()) return;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+    rafRef.current = requestAnimationFrame(() => {
+      const el = getViewport();
+      if (!el) return;
+      // Instant during streaming to avoid jitter; smooth for new messages
+      if (isStreamingRef.current) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+      rafRef.current = null;
+    });
+
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [messages, isNearBottom, getViewport]);
 
   if (messages.length === 0) {
     return (
@@ -24,13 +65,14 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <ScrollArea className="flex-1 min-h-0">
-      <div className="flex flex-col gap-3 p-4">
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
-        <div ref={bottomRef} />
-      </div>
-    </ScrollArea>
+    <div ref={wrapperRef} className="flex-1 min-h-0">
+      <ScrollArea className="h-full">
+        <div className="flex flex-col gap-3 p-4">
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }

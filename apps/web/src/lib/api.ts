@@ -72,6 +72,55 @@ export const api = {
       `/api/fs/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`,
     ),
 
+  /** List files + dirs in a directory (for file tree). */
+  listTree: (path: string) =>
+    request<{ entries: Array<{ name: string; type: "file" | "dir" }> }>(
+      `/api/fs/tree?path=${encodeURIComponent(path)}`,
+    ),
+
+  /** Read a file's content + detected language. */
+  readFile: (path: string) =>
+    request<{ content: string; language: string } | { binary: true; size: number }>(
+      `/api/fs/file?path=${encodeURIComponent(path)}`,
+    ),
+
+  /** Write file content. */
+  writeFile: (path: string, content: string) =>
+    request<{ ok: boolean }>("/api/fs/file", {
+      method: "PUT",
+      body: JSON.stringify({ path, content }),
+    }),
+
+  /** Create a new file or directory. */
+  createEntry: (path: string, type: "file" | "dir") =>
+    request<{ ok: boolean }>("/api/fs/create", {
+      method: "POST",
+      body: JSON.stringify({ path, type }),
+    }),
+
+  /** Delete a file or directory. */
+  deleteEntry: (path: string) =>
+    request<{ ok: boolean }>("/api/fs/delete", {
+      method: "DELETE",
+      body: JSON.stringify({ path }),
+    }),
+
+  /** Upload a file to a directory. */
+  uploadFile: async (dirPath: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("path", dirPath);
+    const res = await fetch(`${BASE_URL}/api/fs/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? `Upload failed: ${res.status}`);
+    }
+    return res.json() as Promise<{ ok: boolean; name: string }>;
+  },
+
   /** List all configured providers (keys masked). */
   getProviders: () => request<Provider[]>("/api/providers"),
 

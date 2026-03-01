@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { ChatMessage, Message, Session, ToolCall, Mode, QuestionInfo } from "../../lib/types";
+import type { ChatMessage, Message, Session, ToolCall, Mode, QuestionInfo, FileReference } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
 import { MessageList } from "./MessageList";
@@ -31,9 +31,24 @@ function dbMsgToChatMsg(m: Message): ChatMessage {
 interface ChatPanelProps {
   previewUrl: string;
   onPreviewUrlChange: (url: string) => void;
+  projectDir: string;
+  onProjectDirChange: (dir: string) => void;
+  fileReferences?: FileReference[];
+  onAddFileReference?: (ref: FileReference) => void;
+  onRemoveFileReference?: (index: number) => void;
+  onClearFileReferences?: () => void;
 }
 
-export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
+export function ChatPanel({
+  previewUrl,
+  onPreviewUrlChange,
+  projectDir,
+  onProjectDirChange,
+  fileReferences = [],
+  onAddFileReference,
+  onRemoveFileReference,
+  onClearFileReferences,
+}: ChatPanelProps) {
   const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
 
@@ -47,9 +62,6 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   const [connectedModels, setConnectedModels] = useState<ConnectedModelsItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection | null>(null);
 
-  // Project directory state
-  const [projectDir, setProjectDir] = useState("");
-
   // Mode state
   const [mode, setMode] = useState<Mode>("agent");
 
@@ -62,7 +74,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   // Track whether we've done the initial load for the URL session
   const initialLoadDone = useRef(false);
 
-  // Fetch connected models + default CWD on mount
+  // Fetch connected models on mount
   useEffect(() => {
     api.getConnectedModels().then((models) => {
       setConnectedModels(models);
@@ -76,15 +88,6 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
     }).catch(() => {
       // silently fail — will show empty model list
     });
-
-    // Auto-populate projectDir from CLI launch directory (only if not in a session yet)
-    if (!urlSessionId) {
-      api.getCwd().then(({ cwd }) => {
-        if (cwd && !projectDir) {
-          setProjectDir(cwd);
-        }
-      }).catch(() => {});
-    }
   }, []);
 
   // Load session from URL on mount
@@ -109,7 +112,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
           setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
         }
         if (session.projectDir) {
-          setProjectDir(session.projectDir);
+          onProjectDirChange(session.projectDir);
         }
         if (session.previewUrl) {
           onPreviewUrlChange(session.previewUrl);
@@ -121,7 +124,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         navigate("/", { replace: true });
       }
     })();
-  }, [urlSessionId, navigate, onPreviewUrlChange]);
+  }, [urlSessionId, navigate, onPreviewUrlChange, onProjectDirChange]);
 
   const loadSession = useCallback(
     async (session: Session) => {
@@ -133,7 +136,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
       }
       if (session.projectDir) {
-        setProjectDir(session.projectDir);
+        onProjectDirChange(session.projectDir);
       }
       if (session.previewUrl) {
         onPreviewUrlChange(session.previewUrl);
@@ -146,7 +149,7 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
         toast.error(err instanceof Error ? err.message : "Failed to load messages");
       }
     },
-    [navigate, onPreviewUrlChange],
+    [navigate, onPreviewUrlChange, onProjectDirChange],
   );
 
   const createSession = useCallback(async () => {
@@ -189,12 +192,12 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
   // Persist projectDir to session
   const handleProjectDirChange = useCallback(
     (dir: string) => {
-      setProjectDir(dir);
+      onProjectDirChange(dir);
       if (sessionId) {
         api.updateSession(sessionId, { projectDir: dir }).catch(() => {});
       }
     },
-    [sessionId],
+    [sessionId, onProjectDirChange],
   );
 
   // Persist previewUrl to session when it changes
@@ -486,6 +489,10 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
               onProjectDirChange={handleProjectDirChange}
               mode={mode}
               onModeChange={setMode}
+              fileReferences={fileReferences}
+              onAddFileReference={onAddFileReference}
+              onRemoveFileReference={onRemoveFileReference}
+              onClearFileReferences={onClearFileReferences}
             />
           </div>
         ) : (
@@ -503,6 +510,10 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
               onProjectDirChange={handleProjectDirChange}
               mode={mode}
               onModeChange={setMode}
+              fileReferences={fileReferences}
+              onAddFileReference={onAddFileReference}
+              onRemoveFileReference={onRemoveFileReference}
+              onClearFileReferences={onClearFileReferences}
             />
           </>
         )}

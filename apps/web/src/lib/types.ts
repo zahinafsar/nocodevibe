@@ -49,3 +49,10 @@ export interface ChatMessage {
   isStreaming?: boolean;
   images?: string[];
 }
+
+export interface FileReference {
+  filePath: string;
+  startLine: number;
+  endLine: number;
+  content: string;
+}
