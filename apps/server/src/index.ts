@@ -25,6 +25,7 @@ import { sessions } from "./routes/sessions.js";
 import { providers } from "./routes/providers.js";
 import { configRoutes } from "./routes/config.js";
 import { fs } from "./routes/fs.js";
+import { skills as skillsRoute } from "./routes/skills.js";
 import { proxy } from "./routes/proxy.js";
 
 const app = new Hono();
@@ -65,6 +66,9 @@ app.route("/api/config", configRoutes);
 
 // Filesystem browsing
 app.route("/api/fs", fs);
+
+// Skills management
+app.route("/api/skills", skillsRoute);
 
 // Editor (built dist)
 app.route("/", proxy);

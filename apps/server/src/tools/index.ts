@@ -9,11 +9,12 @@ import { createCodeSearchTool } from "./codesearch.js";
 import { createImageFetchTool } from "./imagefetch.js";
 import { createPlanWriteTool, createPlanExitTool } from "./plan.js";
 import { createQuestionTool } from "./question.js";
+import { createSkillTool } from "./skill.js";
 
 /**
  * Create all tools scoped to a specific project directory.
- * - Agent mode: full access (read + write + edit)
- * - Plan mode: read-only + plan_write (plan file only) + plan_exit
+ * - Agent mode: full access (read + write + edit + skill)
+ * - Plan mode: read-only + plan_write (plan file only) + plan_exit + skill
  */
 export function createTools(
   projectDir: string,
@@ -29,6 +30,7 @@ export function createTools(
     websearch: createWebSearchTool(),
     codesearch: createCodeSearchTool(),
     imagefetch: createImageFetchTool(supportsVision),
+    skill: createSkillTool(),
   };
 
   if (mode === "plan" && planPath) {

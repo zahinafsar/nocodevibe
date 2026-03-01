@@ -1,4 +1,4 @@
-import type { Session, Message, SSEEvent } from "./types";
+import type { Session, Message, SSEEvent, SkillInfo } from "./types";
 
 // Empty string = same-origin (works in both dev proxy and production).
 // For local dev with separate Vite + server, set VITE_API_URL in .env.
@@ -277,4 +277,31 @@ export const api = {
       abort: () => abortController.abort(),
     };
   },
+
+  // ── Skills ──────────────────────────────────────────────
+
+  /** List all skills (global ~/.coodeen/skills/). */
+  getSkills: () =>
+    request<SkillInfo[]>("/api/skills"),
+
+  /** Create a new skill (structured). */
+  createSkill: (name: string, description: string, content: string) =>
+    request<SkillInfo>("/api/skills", {
+      method: "POST",
+      body: JSON.stringify({ name, description, content }),
+    }),
+
+  /** Create a skill by writing raw SKILL.md content. */
+  createSkillRaw: (slug: string, raw: string) =>
+    request<{ ok: boolean }>("/api/skills/raw", {
+      method: "POST",
+      body: JSON.stringify({ slug, raw }),
+    }),
+
+  /** Delete a skill. */
+  deleteSkill: (name: string) =>
+    request<{ ok: boolean }>("/api/skills", {
+      method: "DELETE",
+      body: JSON.stringify({ name }),
+    }),
 };

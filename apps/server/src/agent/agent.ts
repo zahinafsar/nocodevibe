@@ -4,6 +4,7 @@ import { message as messageDb } from "../db/index.js";
 import { createTools } from "../tools/index.js";
 import { getPlanPath, readPlan } from "../tools/plan.js";
 import { modelSupportsImage } from "./modelsConfig.js";
+import { discoverSkills } from "../skills/scanner.js";
 
 /** SSE event types streamed to the client */
 export type AgentEvent =
@@ -132,7 +133,13 @@ export async function* runAgent({
       ? `\n\n## Active Plan\nA plan was created in plan mode. Follow it closely:\n\n${existingPlan}`
       : "";
 
-    systemPrompt = `You are Coodeen, a coding assistant. You are running on the ${modelId} model. You have full filesystem access — you can read, write, and edit any file on the user's machine. The user's home directory is ${home}. The current project directory is ${projectDir}. Relative paths resolve against the project directory. Always use absolute paths when referencing files outside the project directory. You can search the web with the websearch tool for current information, and use codesearch for programming documentation, API references, and code examples.${planContext}`;
+    // Discover project skills and inject into system prompt
+    const skills = await discoverSkills();
+    const skillContext = skills.length > 0
+      ? `\n\nYou have access to specialized skills. When a task matches one of these skills, use the \`skill\` tool to load its instructions:\n${skills.map((s) => `- **${s.name}**: ${s.description}`).join("\n")}`
+      : "";
+
+    systemPrompt = `You are Coodeen, a coding assistant. You are running on the ${modelId} model. You have full filesystem access — you can read, write, and edit any file on the user's machine. The user's home directory is ${home}. The current project directory is ${projectDir}. Relative paths resolve against the project directory. Always use absolute paths when referencing files outside the project directory. You can search the web with the websearch tool for current information, and use codesearch for programming documentation, API references, and code examples.${planContext}${skillContext}`;
   }
 
   // 4. Create tools scoped to the project directory (plan mode gets plan_write + plan_exit)
