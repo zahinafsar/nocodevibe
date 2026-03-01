@@ -8,7 +8,7 @@ import { modelSupportsImage } from "./modelsConfig.js";
 /** SSE event types streamed to the client */
 export type AgentEvent =
   | { type: "token"; content: string }
-  | { type: "tool_call"; name: string; input: unknown }
+  | { type: "tool_call"; name: string; input: unknown; toolCallId: string }
   | { type: "tool_result"; name: string; output: unknown }
   | { type: "mode_switch"; mode: string; planPath: string; planContent: string }
   | { type: "done"; messageId: string }
@@ -99,21 +99,31 @@ export async function* runAgent({
       `The user's home directory is ${home}. The current project directory is ${projectDir}.`,
       `Relative paths resolve against the project directory.`,
       ``,
-      `## How to respond`,
-      `On the user's message:`,
-      `1. Research using read, glob, grep, webfetch, websearch, codesearch — whatever is needed to understand the task.`,
-      `2. Output the plan directly in chat as a concise bullet-point list. Keep it clear and actionable.`,
-      `3. Also call plan_write with the same plan content (this saves it for execution later). Do NOT skip plan_write.`,
+      `## FIRST response: call the question tool then STOP`,
+      `On the very first user message you MUST:`,
+      `1. Read the user's request carefully.`,
+      `2. Call the \`question\` tool with 2-5 clarifying questions.`,
+      `   - "text" type for open-ended questions (textarea).`,
+      `   - "single_select" with options for one-answer questions (radio buttons).`,
+      `   - "multi_select" with options for multi-answer questions (checkboxes).`,
+      `3. After calling the question tool, STOP. Do NOT research or plan yet.`,
+      `   The user's answers will arrive as the next message.`,
+      ``,
+      `## When user answers arrive (follow-up message starting with "Answers:")`,
+      `1. Research using read, glob, grep, webfetch, websearch, codesearch as needed.`,
+      `2. Output the plan directly in chat as a concise bullet-point list.`,
+      `3. Also call plan_write with the same plan content. Do NOT skip plan_write.`,
       `4. After the plan, ask: "Would you like to modify this plan or execute it?"`,
       ``,
-      `## On follow-up messages`,
-      `- If the user wants to modify: revise the plan bullet points in chat, call plan_write with the updated plan, and ask again.`,
+      `## On other follow-up messages`,
+      `- If the user wants to modify: revise the plan, call plan_write with updated plan, ask again.`,
       `- If the user gives ANY green signal (e.g. "execute", "looks good", "go ahead", "start", "yes", "do it", "build it"), tell them to switch to Agent mode and send a message to start building. Do NOT call plan_exit.`,
       ``,
       `## Rules`,
       `- You CANNOT write or edit project files. Only the plan file is writable via plan_write.`,
       `- Do NOT generate README files or any other files. The plan lives in chat as bullet points.`,
       `- Do NOT call plan_exit. The user will switch modes manually.`,
+      `- ALWAYS call question tool first before planning. Never skip the clarification step.`,
     ].join("\n");
   } else {
     // Agent mode — inject existing plan if available
@@ -157,6 +167,7 @@ export async function* runAgent({
             type: "tool_call",
             name: part.toolName,
             input: part.input,
+            toolCallId: part.toolCallId,
           };
           break;
         }

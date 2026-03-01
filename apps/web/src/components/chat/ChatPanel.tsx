@@ -1,12 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { ChatMessage, Message, Session, ToolCall, Mode } from "../../lib/types";
+import type { ChatMessage, Message, Session, ToolCall, Mode, QuestionInfo } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
 import { MessageList } from "./MessageList";
 import { PromptInput, type ModelSelection } from "./PromptInput";
 import { SessionDrawer } from "./SessionDrawer";
+import { QuestionModal } from "./QuestionModal";
 import logoSvg from "../../assets/logo.svg";
 
 let _msgId = 0;
@@ -51,6 +52,12 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
 
   // Mode state
   const [mode, setMode] = useState<Mode>("agent");
+
+  // Pending question state (for plan mode question tool)
+  const [pendingQuestion, setPendingQuestion] = useState<{
+    questionId: string;
+    questions: QuestionInfo[];
+  } | null>(null);
 
   // Track whether we've done the initial load for the URL session
   const initialLoadDone = useRef(false);
@@ -272,6 +279,18 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
                     : m,
                 ),
               );
+              // Show question modal when the question tool is called.
+              // The toolCallId is used as questionId — the same ID is available
+              // in the tool's execute() via SDK options, so no side-channel needed.
+              if (event.name === "question" && event.toolCallId) {
+                const input = event.input as { questions?: QuestionInfo[] };
+                if (input.questions) {
+                  setPendingQuestion({
+                    questionId: event.toolCallId,
+                    questions: input.questions,
+                  });
+                }
+              }
               break;
             case "tool_result":
               setMessages((prev) =>
@@ -416,8 +435,29 @@ export function ChatPanel({ previewUrl, onPreviewUrlChange }: ChatPanelProps) {
 
   const isEmpty = messages.length === 0;
 
+  const handleQuestionSubmit = useCallback(
+    async (answers: Array<{ question: string; answer: string | string[] }>) => {
+      if (!pendingQuestion) return;
+      setPendingQuestion(null);
+      // Format answers and send as a new user message
+      const formatted = answers
+        .map((a) => {
+          const val = Array.isArray(a.answer) ? a.answer.join(", ") : a.answer;
+          return `${a.question}: ${val}`;
+        })
+        .join("\n");
+      sendMessage(`Answers:\n${formatted}`);
+    },
+    [pendingQuestion, sendMessage],
+  );
+
   return (
     <>
+      <QuestionModal
+        open={pendingQuestion !== null}
+        questions={pendingQuestion?.questions ?? []}
+        onSubmit={handleQuestionSubmit}
+      />
       <SessionDrawer
         currentSessionId={sessionId}
         onSelectSession={loadSession}

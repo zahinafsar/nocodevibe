@@ -8,6 +8,7 @@ import { createWebSearchTool } from "./websearch.js";
 import { createCodeSearchTool } from "./codesearch.js";
 import { createImageFetchTool } from "./imagefetch.js";
 import { createPlanWriteTool, createPlanExitTool } from "./plan.js";
+import { createQuestionTool } from "./question.js";
 
 /**
  * Create all tools scoped to a specific project directory.
@@ -33,6 +34,7 @@ export function createTools(
   if (mode === "plan" && planPath) {
     return {
       ...base,
+      question: createQuestionTool(),
       plan_write: createPlanWriteTool(planPath),
       plan_exit: createPlanExitTool(planPath),
     };

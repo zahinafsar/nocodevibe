@@ -1,7 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod/v4";
 import { writeFile, mkdir, readFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 
 /**
  * Tool for writing the plan file in plan mode.
@@ -53,8 +54,8 @@ export const createPlanExitTool = (planPath: string) =>
 /**
  * Get the plan file path for a session.
  */
-export function getPlanPath(projectDir: string, sessionId: string): string {
-  return `${projectDir}/.coodeen/plans/${sessionId}.md`;
+export function getPlanPath(_projectDir: string, sessionId: string): string {
+  return join(homedir(), ".coodeen", "plans", `${sessionId}.md`);
 }
 
 /**
