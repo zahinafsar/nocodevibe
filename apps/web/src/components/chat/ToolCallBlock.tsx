@@ -141,7 +141,7 @@ interface ToolCallBlockProps {
 }
 
 export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
-  const [open, setOpen] = useState(toolCall.name === "plan_write");
+  const [open, setOpen] = useState(false);
   const hasOutput = toolCall.output !== undefined;
   const meta = getMeta(toolCall.name);
   const Icon = meta.icon;
