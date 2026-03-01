@@ -1,11 +1,10 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
-import { Send, Square, X, Folder, Cpu, ImagePlus, FileCode, Zap } from "lucide-react";
+import { Send, Square, X, Folder, Cpu, ImagePlus, FileCode } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import type { ConnectedModelsItem } from "../../lib/api";
 import type { Mode, FileReference } from "../../lib/types";
 import { FolderPickerDialog } from "./FolderPickerDialog";
 import { ModelPickerDialog } from "./ModelPickerDialog";
-import { SkillManager } from "../skills/SkillManager";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +84,6 @@ export function PromptInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
-  const [skillManagerOpen, setSkillManagerOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const {
     selections,
@@ -450,15 +448,6 @@ export function PromptInput({
             {projectDir || "Select folder"}
           </span>
         </button>
-        <button
-          type="button"
-          onClick={() => setSkillManagerOpen(true)}
-          className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent"
-          title="Manage skills"
-        >
-          <Zap className="h-3 w-3 shrink-0" />
-          <span>Skills</span>
-        </button>
       </div>
       <ModelPickerDialog
         open={modelPickerOpen}
@@ -472,10 +461,6 @@ export function PromptInput({
         onOpenChange={setFolderPickerOpen}
         onSelect={(path) => onProjectDirChange?.(path)}
         initialPath={projectDir || undefined}
-      />
-      <SkillManager
-        open={skillManagerOpen}
-        onOpenChange={setSkillManagerOpen}
       />
     </form>
   );
